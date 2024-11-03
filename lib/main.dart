@@ -10,14 +10,20 @@ import 'setting_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(const MyApp());
+  runApp(MyApp()); // Removed const keyword
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  // Define an instance of FirebaseAuth
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Check if user is already signed in
+    User? user = _auth.currentUser; // Check current user
+
     return MaterialApp(
       title: 'Flutter Firebase App',
       theme: ThemeData(
@@ -29,7 +35,9 @@ class MyApp extends StatelessWidget {
           bodyLarge: TextStyle(fontSize: 16.0, color: Colors.black54),
         ),
       ),
-      home: SignInScreen(), // Set the sign-in screen as the home
+      home: user != null
+          ? Dashboard(user: user) // Directly go to Dashboard if signed in
+          : SignInScreen(), // Otherwise, show SignInScreen
       routes: {
         '/signin': (context) => SignInScreen(), // SignInScreen route
       },
@@ -45,9 +53,18 @@ class SignInScreen extends StatelessWidget {
 
   Future<User?> signInWithGoogle(BuildContext context) async {
     try {
+      // Sign out the current user to ensure account selection
+      await _googleSignIn.signOut();
+
+      // Prompt user to select an account each time
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        // User canceled the sign-in process
+        return null;
+      }
+
       final GoogleSignInAuthentication? googleAuth =
-          await googleUser?.authentication;
+          await googleUser.authentication;
 
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth?.accessToken,
